@@ -29,17 +29,17 @@ namespace DataToDocx.ViewModels.Windows
             {
                 Content = "模版数据关联",
                 Icon = new SymbolIcon { Symbol = SymbolRegular.DataHistogram24 },
-                TargetPageType = typeof(Views.Pages.TemplatePage)
-            },new NavigationViewItem()
-            {
-                Content = "批量生成",
-                Icon = new SymbolIcon { Symbol = SymbolRegular.DataHistogram24 },
-                TargetPageType = typeof(Views.Pages.CreatePage)
-            },
+                TargetPageType = typeof(Views.Pages.TemplatePage) },
+            //},new NavigationViewItem()
+            //{
+            //    Content = "批量生成",
+            //    Icon = new SymbolIcon { Symbol = SymbolRegular.DataHistogram24 },
+            //    TargetPageType = typeof(Views.Pages.CreatePage)
+            //},
 
             new NavigationViewItem()
             {
-                Content = "日志",
+                Content = "批量生成",
                 Icon = new SymbolIcon { Symbol = SymbolRegular.DataHistogram24 },
                 TargetPageType = typeof(Views.Pages.LogPage)
             },                        new NavigationViewItem()

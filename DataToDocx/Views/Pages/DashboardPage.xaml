@@ -18,61 +18,101 @@
 
     <Grid VerticalAlignment="Top">
         <StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock
-                    x:Name="MainTableName"
-                    Width="80"
-                    Margin="5"
-                    VerticalAlignment="Center"
-                    Text="主数据表" />
-                <TextBox
-                    x:Name="MainTableExcelSource"
-                    Width="120"
-                    Margin="5" />
-                <Button
-                    x:Name="MainTableExcelChoose"
-                    Width="100"
-                    Margin="5"
-                    Click="MainTableExcelChoose_Click"
-                    Content="选择文件" />
-                <Button
-                    x:Name="MainTableExcelUpload"
-                    Width="100"
-                    Margin="5"
-                    Content="导入数据库" />
-                <Label x:Name="MainTableState" Margin="5" />
+            <StackPanel>
+                <ItemsControl ItemsSource="{Binding ViewModel.MainDataUnits}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel>
+                                <TextBlock
+                                    Width="80"
+                                    Margin="5"
+                                    VerticalAlignment="Center"
+                                    FontWeight="ExtraLight"
+                                    Foreground="LightSkyBlue"
+                                    Text="{Binding tableName}" />
+                                <TextBox
+                                    Width="350"
+                                    Margin="5"
+                                    Text="{Binding FilePath}" />
+                                <ui:Button
+                                    Width="100"
+                                    Margin="5"
+                                    Appearance="Primary"
+                                    Command="{Binding FileChoose}"
+                                    Content="选择文件" />
+                                <ui:Button
+                                    Width="100"
+                                    Margin="5"
+                                    Appearance="Success"
+                                    Command="{Binding FileUpload}"
+                                    Content="导入数据库" />
+                                <ui:ProgressRing
+                                    Width="24"
+                                    Height="24"
+                                    Margin="5"
+                                    HorizontalAlignment="Left"
+                                    IsIndeterminate="False"
+                                    Progress="{Binding ProgressValue}"
+                                    Visibility="Collapsed" />
+                                <TextBlock
+                                    Margin="5"
+                                    VerticalAlignment="Center"
+                                    Text="{Binding InputCount, StringFormat=已导入：{0}}" />
+
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
 
             <StackPanel>
                 <ItemsControl ItemsSource="{Binding ViewModel.DataUnits}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Orientation="Horizontal">
+                            <DockPanel>
                                 <TextBlock
                                     Width="80"
                                     Margin="5"
                                     VerticalAlignment="Center"
+                                    FontWeight="ExtraLight"
+                                    Foreground="LightSkyBlue"
                                     Text="{Binding tableName}" />
                                 <TextBox
-                                    Width="120"
+                                    Width="350"
                                     Margin="5"
                                     Text="{Binding FilePath}" />
-                                <Button
+                                <ui:Button
                                     Width="100"
                                     Margin="5"
+                                    Appearance="Primary"
                                     Command="{Binding FileChoose}"
                                     Content="选择文件" />
-                                <Button
+                                <ui:Button
                                     Width="100"
                                     Margin="5"
+                                    Appearance="Success"
                                     Command="{Binding FileUpload}"
                                     Content="导入数据库" />
-                                <ui:Button
+                                <ui:ProgressRing
+                                    Width="24"
+                                    Height="24"
                                     Margin="5"
+                                    HorizontalAlignment="Left"
+                                    IsIndeterminate="False"
+                                    Progress="{Binding ProgressValue}"
+                                    Visibility="Collapsed" />
+                                <TextBlock
+                                    Margin="5"
+                                    VerticalAlignment="Center"
+                                    Text="{Binding InputCount, StringFormat=已导入：{0}}" />
+                                <ui:Button
+                                    Width="100"
+                                    Margin="5"
+                                    HorizontalAlignment="Right"
                                     Appearance="Caution"
                                     Command="{Binding DelSelf}"
-                                    Content="－" />
-                            </StackPanel>
+                                    Content="删除" />
+                            </DockPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -80,11 +120,12 @@
 
 
             <ui:Button
-                Width="120"
+                Width="100"
+                Margin="5"
                 HorizontalAlignment="Right"
                 Appearance="Primary"
                 Command="{Binding ViewModel.AddSecondryDataCommand}"
-                Content="添加次要数据表" />
+                Content="添加次要表" />
         </StackPanel>
     </Grid>
 </Page>

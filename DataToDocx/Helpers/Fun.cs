@@ -13,6 +13,8 @@ using System.Runtime.InteropServices;
 using System.IO;
 using CommunityToolkit.Mvvm.Messaging;
 using Wpf.Ui.Controls;
+using Microsoft.Data.Sqlite;
+using System.Diagnostics.Metrics;
 
 namespace DataToDocx
 {
@@ -57,68 +59,179 @@ namespace DataToDocx
 
         private static string GetHeaderQuery(List<string> ziduancheck)
         {
-            string sql_creat_part1 = "";
-            foreach (var item in ziduancheck)
+            StringBuilder sql_creat = new StringBuilder();
+
+            sql_creat.Append($"CREATE TABLE IF NOT EXISTS TABLEA (");
+            for (int i = 0; i < ziduancheck.Count; i++)
             {
-                sql_creat_part1 += " `" + item + "` TEXT,";
-
-            }
-            string sql_creat1 = "CREATE TABLE IF NOT EXISTS TABLEA" + "(" + sql_creat_part1.Substring(0, sql_creat_part1.Length - 1) + ");";
-            return sql_creat1;
-        }
-
-        /// <summary>
-		/// 使用sqlite3.dll关闭文件同步、开启事务、对语句进行执行准备、开启wal模式，极速导入sqlite。
-		/// </summary>
-		/// <param name="filePath">excel文件目录</param>
-		/// <param name="tablename">导入数据库的表名</param>
-		/// <param name="connstr">数据库连接字符</param>
-		/// <param name="label">用于跟踪导入计数的label</param>
-		public int Import_Excel_plus(string filePath, string tablename, string connstr, Label label, bool ziduan_checkstate = true)
-        {
-
-            UTF8Encoding utf8 = new UTF8Encoding();
-            int state = 0;
-
-            //bool ziduan_checkstate = true;
-            //ziduan_checkstate = Ziduan_Check(filePath, tablename);
-
-            using (var stream = File.OpenRead(filePath))
-            {
-                var rows = stream.Query(excelType: ExcelType.XLSX).Cast<IDictionary<string, object>>();
-                var columns = MiniExcel.GetColumns(filePath);
-                int skip_num = GetHeadRow(rows);
-                int ziduan_num = rows.Skip(skip_num).First().ToArray().Count();//字段数
-
-                List<string> ziduancheck = GetHeadKey(rows, skip_num);
-                string sql_creat1 = GetHeaderQuery(ziduancheck);//获取创建表的sql语句
-
-
-
-                if (ziduan_checkstate)
+                if (i!= ziduancheck.Count-1)
                 {
-
-                    //Updatelogtext($"开始导入【{tablename}】表，导入文件路径{filePath}。", RTB_log);
-                    //Updatelogtext($"【{tablename}】导入文件的表头为第{(skip_num + 1)}行。", RTB_log);
-                    int cdt = ToSqlite(tablename, connstr, label, rows, skip_num, ziduancheck, sql_creat1);
-                    if (cdt == 1)
-                    {
-                        state = 1;
-                        return state;
-                    }
-                    else
-                    {
-                        state = 0;
-                        return state;
-                    }
+                    sql_creat.Append($" `{ziduancheck[i]}` TEXT,");
                 }
                 else
                 {
-                    state = 2;
-                    return state;
+                    sql_creat.Append($" `{ziduancheck[i]}` TEXT");
                 }
             }
+
+
+            //foreach (var item in ziduancheck)
+            //{
+            //    sql_creat_part1.Append($" `{item}` TEXT,");
+
+            //}
+            sql_creat.Append(");");
+            
+            return sql_creat.ToString();
         }
+
+        public static bool ExcelToSqlite(string excelFilePath,string tableName,string connstr,out int progress)
+        {
+
+            int countA = 0;
+            //TODO 读取excel获取rows
+            try
+            {
+
+                using (var stream = File.OpenRead(excelFilePath))
+                {
+                    var rows = stream.Query(excelType: ExcelType.XLSX).Cast<IDictionary<string, object>>();
+                    if (rows == null)
+                    {
+                        progress = 0;
+                        return false;
+                    }
+                    int skip_num = GetHeadRow(rows);
+                    int ziduan_num = rows.Skip(skip_num).First().ToArray().Count();//字段数
+                    List<string> attrs = GetHeadKey(rows, skip_num);//字段列表
+                    StringBuilder sql_creat = new StringBuilder();
+                    sql_creat.Append($"CREATE TABLE IF NOT EXISTS `{tableName}` (");
+                    for (int i = 0; i < attrs.Count; i++)
+                    {
+                        if (i != attrs.Count - 1)
+                        {
+                            sql_creat.Append($" `{attrs[i]}` TEXT,");
+                        }
+                        else
+                        {
+                            sql_creat.Append($" `{attrs[i]}` TEXT");
+                        }
+                    }
+                    sql_creat.Append(");");
+
+                    using (var connection = new SQLiteConnection(connstr))//新建表
+                    {
+                        if (connection.State == ConnectionState.Closed)
+                        {
+                            connection.Open();
+                        }
+
+                        new SQLiteCommand($"DROP TABLE IF EXISTS `{tableName}`;", connection).ExecuteNonQuery();
+                        SQLiteCommand command1 = new SQLiteCommand(sql_creat.ToString(), connection);
+                        command1.ExecuteNonQuery();//建立空表
+                        connection.Close();
+                    }
+
+                    
+                    progress = 0;
+                    using (var connection = new SQLiteConnection(connstr))//新建表
+                    {
+                        if (connection.State == ConnectionState.Closed)
+                        {
+                            connection.Open();
+                        }
+                        StringBuilder insertsql = new StringBuilder();
+                        insertsql.Append($"insert into `{tableName}` values(");
+                        for (int i = 0; i < attrs.Count; i++)
+                        {
+                            if (i != attrs.Count - 1)
+                            {
+                                insertsql.Append($"$value{i},");
+                            }
+                            else
+                            {
+                                insertsql.Append($"$value{i})");
+                            }
+                        }
+                        var transaction = connection.BeginTransaction();
+
+                        var command = connection.CreateCommand();
+                        command.CommandText = insertsql.ToString();
+                        //List<SqliteParameter> sqliteParameters = new List<SqliteParameter>();
+                        for (int i = 0; i < attrs.Count; i++)
+                        {
+                            var parameter = command.CreateParameter();
+                            parameter.ParameterName = $"$value{i}";
+                            command.Parameters.Add(parameter);
+                        }
+
+
+                        //var transaction = connection.BeginTransaction();
+                        foreach (var row in rows.Skip(skip_num + 1))
+                        {
+                            int idx = 0;
+                            foreach (var em in row)
+                            {
+                                if (idx == attrs.Count)
+                                {
+                                    break;
+                                }
+                                if (em.Value != null)
+                                {
+                                    command.Parameters[idx].Value = em.Value.ToString();
+                                }
+                                else
+                                {
+                                    command.Parameters[idx].Value = "";
+                                }
+                                idx++;
+                            }
+                            command.Prepare();
+                            command.ExecuteNonQuery();
+                            countA++;
+                            
+                            if (countA%500==0)
+                            {
+                                progress = countA;
+                                
+                            }
+
+
+                        }
+                        progress = countA;
+                        transaction.Commit();
+                        transaction.Dispose();
+                        connection.Close();
+
+                    }
+                }
+                Dispatcher.CurrentDispatcher.Invoke(() =>
+                {
+                ShowSnackbar("导入完成", $"已导入{countA}条数据。", 1);
+                }); 
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.CurrentDispatcher.Invoke(() =>
+                {
+                    ShowSnackbar("导入错误", $"错误提示：{ex.Message}", 1);
+                });
+                
+                progress = 0;
+                return false;
+                
+            }
+        }
+
+
+
+       
+        /// <summary>
+        /// 根据excel的流式rows获取字段行
+        /// </summary>
+        /// <param name="rows"></param>
+        /// <returns></returns>
         private static int GetHeadRow(IEnumerable<IDictionary<string, object>> rows)
         {
             var firstRow = rows.FirstOrDefault();
@@ -184,7 +297,7 @@ namespace DataToDocx
             int condition = 1;
             CreateNewTable(tablename, connstr, sql_creat1);
             //int count_begin = 1;
-            int loadcount = Sqlite_plus(tablename, connstr, label, rows, ziduancheck, skip_num);
+            int loadcount = 0; //Sqlite_plus(tablename, connstr, label, rows, ziduancheck, skip_num);
             if (loadcount != 0)
             {
                 ChangeTableName(tablename, connstr);
@@ -195,10 +308,7 @@ namespace DataToDocx
                 return condition;
             }
             else
-            {
-
-
-                Updatelabel("× 导入失败", label);
+            {                Updatelabel("× 导入失败", label);
 
                 //Updatelogtext("【" + tablename + "】导入完成，共导入" + loadcount + "条。", RTB_log);
                 condition = 0;
@@ -265,142 +375,9 @@ namespace DataToDocx
             }
         }
 
-        private int Sqlite_plus(string tablename, string connstr, Label label, IEnumerable<IDictionary<string, object>> rows, List<string> ziduancheck, int skip_num)
-        {
-            int loadcount = 0;
-            //声明两个指针
-            IntPtr db;
-            string connstr_utf8 = "";
-            try
-            {
-                connstr_utf8 = $"{connstr.Replace("Data Source=", "").Replace(AppDomain.CurrentDomain.BaseDirectory, ".")}";
-            }
-            catch (Exception)
-            {
-                connstr_utf8 = $"{connstr.Replace("Data Source=", "")}";
-            }
+       
 
-            try
-            {
-                sqlite3_open(connstr_utf8, out db);
-                sqlite3_exec(db, "PRAGMA synchronous = OFF;", 0, IntPtr.Zero, "");
-                sqlite3_exec(db, "begin;", 0, IntPtr.Zero, "");
-
-                foreach (var row in rows.Skip(skip_num + 1))
-                {
-                    //开始事务
-                    IntPtr P_prepare;
-                    //sqlite3_exec(db, "begin;", 0, IntPtr.Zero, "");
-                    IntPtr PzTail = new IntPtr(0);
-                    string manyask = string.Join(",", Enumerable.Repeat("?", ziduancheck.Count));
-                    string sql_plus = $"insert into TABLEA values({manyask});";
-                    sqlite3_prepare_v2(db, sql_plus, sql_plus.Length, out P_prepare, PzTail);
-                    //重置
-                    sqlite3_reset(P_prepare);
-                    int id_num = 1;
-                    foreach (var em in row)
-                    {
-                        if (em.Value != null)
-                        {
-                            sqlite3_bind_text(P_prepare, id_num, Encoding.UTF8.GetBytes(em.Value.ToString()), Encoding.UTF8.GetBytes(em.Value.ToString()).Length, IntPtr.Zero);
-                        }
-                        else
-                        {
-                            sqlite3_bind_text(P_prepare, id_num, Encoding.UTF8.GetBytes(" "), Encoding.UTF8.GetBytes(" ").Length, IntPtr.Zero);
-                        }
-                        id_num++;
-                    }
-                    sqlite3_step(P_prepare);
-                    sqlite3_finalize(P_prepare);
-
-                    loadcount++;
-                    if (loadcount % 1000 == 0)
-                    {
-
-                        sqlite3_exec(db, "commit;", 0, IntPtr.Zero, "");
-                        //sqlite3_finalize(P_prepare);
-                        sqlite3_free(PzTail);
-                        sqlite3_exec(db, "begin;", 0, IntPtr.Zero, "");
-
-                        //Updatelabel(tablename + "\r\n已导入" + loadcount + "条", label);
-
-
-                    }
-
-                }
-
-                sqlite3_exec(db, "commit;", 0, IntPtr.Zero, "");
-                sqlite3_close(db);
-            }
-            catch (System.AccessViolationException)
-            {
-
-                loadcount = 0;
-            }
-            return loadcount;
-        }
-
-
-        ///绑定sqlite3.dll数据
-        ///
-        [DllImport("sqlite3.dll", EntryPoint = "sqlite3_open", CallingConvention = CallingConvention.Cdecl)]
-        static extern int sqlite3_open(string filename, out IntPtr db);
-
-        [DllImport("sqlite3.dll", EntryPoint = "sqlite3_close", CallingConvention = CallingConvention.Cdecl)]
-        static extern int sqlite3_close(IntPtr db);
-
-        [DllImport("sqlite3.dll", EntryPoint = "sqlite3_prepare_v2", CallingConvention = CallingConvention.Cdecl)]
-        static extern int sqlite3_prepare_v2(IntPtr db, string zSql,
-        int nByte, out IntPtr ppStmpt, IntPtr pzTail);
-
-        [DllImport("sqlite3.dll", EntryPoint = "sqlite3_step", CallingConvention = CallingConvention.Cdecl)]
-        static extern int sqlite3_step(IntPtr stmHandle);
-
-        [DllImport("sqlite3.dll", EntryPoint = "sqlite3_reset", CallingConvention = CallingConvention.Cdecl)]
-        static extern int sqlite3_reset(IntPtr stmHandle);
-
-        [DllImport("sqlite3.dll", EntryPoint = "sqlite3_finalize", CallingConvention = CallingConvention.Cdecl)]
-        static extern int sqlite3_finalize(IntPtr stmHandle);
-
-        [DllImport("sqlite3.dll", EntryPoint = "sqlite3_free", CallingConvention = CallingConvention.Cdecl)]
-        static extern int sqlite3_free(IntPtr stmHandle);
-
-
-        [DllImport("sqlite3.dll", EntryPoint = "sqlite3_exec", CallingConvention = CallingConvention.Cdecl)]
-        static extern int sqlite3_exec(IntPtr db, string zSql, int funcptr, IntPtr funcparm, string msg);
-
-        //这个绑定是一系列的，有好多，按照不同的类型用不同的绑定
-        [DllImport("sqlite3.dll", EntryPoint = "sqlite3_bind_int", CallingConvention = CallingConvention.Cdecl)]
-        static extern int sqlite3_bind_int(IntPtr stmHandle, int clmindex, int value);
-
-        [DllImport("sqlite3.dll", EntryPoint = "sqlite3_bind_double", CallingConvention = CallingConvention.Cdecl)]
-        static extern int sqlite3_bind_double(IntPtr stmHandle, int clmindex, double value);
-
-        [DllImport("sqlite3.dll", EntryPoint = "sqlite3_bind_text", CallingConvention = CallingConvention.Cdecl)]
-        static extern int sqlite3_bind_text(IntPtr stmHandle, int clmindex, byte[] value, int valuelen, IntPtr funcparm);
-        private void Create_Click(object sender, EventArgs e)
-        {
-
-
-
-        }
-        void EnCtrl()
-        {
-            //textBox_zhen.Enabled = true;
-            //textBox_cun.Enabled = true;
-            //btn_upload_bf.Enabled = true;
-            //btn_upload_qzd.Enabled = true;
-            //Create.Enabled = true;
-        }
-
-        void DisCtrl()
-        {
-            //textBox_zhen.Enabled = false;
-            //textBox_cun.Enabled = false;
-            //btn_upload_bf.Enabled = false;
-            //btn_upload_qzd.Enabled = false;
-            //Create.Enabled = false;
-        }
+       
 
         private void InputTask(string path, string tablename, string connstr, Label label)
         {
@@ -417,7 +394,7 @@ namespace DataToDocx
                     {
                         //Updatelogtext($"【{tablename}】导入任务加入队列。", RTB_log);
                     }
-                    Import_Excel_plus(path, tablename, connstr, label, ziduancheckstate);
+                    //Import_Excel_plus(path, tablename, connstr, label, ziduancheckstate);
                 }
                 catch (Exception e)
                 {

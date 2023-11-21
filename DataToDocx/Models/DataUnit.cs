@@ -17,6 +17,22 @@ namespace DataToDocx.Models
         public string tableName { get; set; }
         public string? key { get; set; }
 
+        
+        private double progressValue = 0;
+        public double ProgressValue
+        {
+            get { return progressValue; }
+               set { progressValue = value;OnPropertyChanged(nameof(ProgressValue)); }
+        }
+        
+        private int inputCount=0;
+        public int InputCount
+        {
+            get { return inputCount; }
+            set { inputCount = value; OnPropertyChanged(nameof(InputCount)); }
+
+        }
+
         public List<string>? attrs { get; set; }
         public string? FilePath { get; set; }
         private ICommand fileChoose;
@@ -79,9 +95,7 @@ namespace DataToDocx.Models
             {
                 FilePath = openFileDialog.FileName;
                 OnPropertyChanged(nameof(FilePath));
-            }
-
-            
+            }            
         }
 
         public void DelSelfMessage()
@@ -97,19 +111,23 @@ namespace DataToDocx.Models
             }
             if (Path.GetExtension(FilePath) != ".xlsx")
             {
-                //WeakReferenceMessenger.Default.Send<Snackbar>(new Snackbar()
-                //{
-                //    Title = "文件格式错误！",
-                //    Message = "导入文件格式不是xlsx,请重新选择文件。",
-                //    Icon = Wpf.Ui.Common.SymbolRegular.ErrorCircle24,
-                //    Appearance = Wpf.Ui.Common.ControlAppearance.Caution
-                //});
+                WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
+                {
+                    "文件格式错误！","导入文件格式不是xlsx,请重新选择文件。"
+                }, "snackbarError");
+                
                 FilePath = "";
                 OnPropertyChanged(nameof(FilePath));
                 return;
             }
 
-            //InputTask(FilePath, AppConfig.SqliteCnn, TabName);
+            Task.Run(() =>
+            {
+                Fun.ExcelToSqlite(FilePath, tableName, Connstr, out inputCount);
+
+            });
+            
+            
         }
 
 

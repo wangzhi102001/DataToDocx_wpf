@@ -5,6 +5,7 @@
 
 using CommunityToolkit.Mvvm.Messaging;
 using DataToDocx.Models;
+using Microsoft.Win32;
 using System.Collections.ObjectModel;
 using Wpf.Ui.Controls;
 
@@ -18,6 +19,15 @@ namespace DataToDocx.ViewModels.Pages
             get {  return dataUnits; }
         
         set { dataUnits = value; OnPropertyChanged(nameof(DataUnits)); }
+        }
+
+        private ObservableCollection<DataUnit> maindataUnits = new ObservableCollection<DataUnit>();
+        public ObservableCollection<DataUnit> MainDataUnits
+        {
+
+            get { return maindataUnits; }
+
+            set { maindataUnits = value; OnPropertyChanged(nameof(MainDataUnits)); }
         }
 
         private ISnackbarService _snackbarService;
@@ -42,6 +52,10 @@ namespace DataToDocx.ViewModels.Pages
                     }
                 }
             });
+            MainDataUnits = new ObservableCollection<DataUnit>()
+            {
+                new DataUnit("主数据库")
+            };
 
             //WeakReferenceMessenger.Default.Register<SimpleContentDialogCreateOptions, string>(this, "dialogContent", ShowDialogContent);
 
@@ -94,6 +108,8 @@ namespace DataToDocx.ViewModels.Pages
             }            
             OnPropertyChanged(nameof(DataUnits));
         }
-        
+
+
+
     }
 }
