@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -542,11 +542,12 @@ namespace DataToDocx
 
         public static void ShowDialog(string Title,string Message,string CloseButtonText)
         {
-            WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
+            Application.Current.Dispatcher.Invoke(()=>{
+WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
             {
                 Title, Message,CloseButtonText
             }, "dialogAlart");
-        }
+        }});
         //public static void ShowContentDialog(string Title, string Message, string CloseButtonText,string PrimaryButtonText="",string SecondaryButtonText = "")
         //{
         //    WeakReferenceMessenger.Default.Send<SimpleContentDialogCreateOptions, string>(new SimpleContentDialogCreateOptions()
