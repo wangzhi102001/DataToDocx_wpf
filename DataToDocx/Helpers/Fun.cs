@@ -18,9 +18,9 @@ using System.Diagnostics.Metrics;
 
 namespace DataToDocx
 {
-   public class Fun
+    public class Fun
     {
-        
+
         public static void UpdateState(string connstr, string tablename, string huid)
         {
             using (var connection = new SQLiteConnection(connstr))
@@ -45,7 +45,7 @@ namespace DataToDocx
 
         public static void Updatelogtext(string log)
         { // 检查标签是否从另一个线程访问
-            WeakReferenceMessenger.Default.Send<string,string>(DateTime.Now.ToString() + " " + log,"log");
+            WeakReferenceMessenger.Default.Send<string, string>(DateTime.Now.ToString() + " " + log, "log");
 
 
         }
@@ -64,7 +64,7 @@ namespace DataToDocx
             sql_creat.Append($"CREATE TABLE IF NOT EXISTS TABLEA (");
             for (int i = 0; i < ziduancheck.Count; i++)
             {
-                if (i!= ziduancheck.Count-1)
+                if (i != ziduancheck.Count - 1)
                 {
                     sql_creat.Append($" `{ziduancheck[i]}` TEXT,");
                 }
@@ -81,11 +81,11 @@ namespace DataToDocx
 
             //}
             sql_creat.Append(");");
-            
+
             return sql_creat.ToString();
         }
 
-        public static bool ExcelToSqlite(string excelFilePath,string tableName,string connstr,out int progress)
+        public static bool ExcelToSqlite(string excelFilePath, string tableName, string connstr, ref int progress)
         {
 
             int countA = 0;
@@ -132,7 +132,7 @@ namespace DataToDocx
                         connection.Close();
                     }
 
-                    
+
                     progress = 0;
                     using (var connection = new SQLiteConnection(connstr))//新建表
                     {
@@ -189,11 +189,11 @@ namespace DataToDocx
                             command.Prepare();
                             command.ExecuteNonQuery();
                             countA++;
-                            
-                            if (countA%500==0)
+
+                            if (countA % 500 == 0)
                             {
                                 progress = countA;
-                                
+
                             }
 
 
@@ -205,28 +205,21 @@ namespace DataToDocx
 
                     }
                 }
-                Dispatcher.CurrentDispatcher.Invoke(() =>
-                {
-                ShowSnackbar("导入完成", $"已导入{countA}条数据。", 1);
-                }); 
+                ShowSnackbar("导入完成", $"已导入{countA}条数据。",4);
                 return true;
             }
             catch (Exception ex)
             {
-                Dispatcher.CurrentDispatcher.Invoke(() =>
-                {
-                    ShowSnackbar("导入错误", $"错误提示：{ex.Message}", 1);
-                });
-                
+                ShowSnackbar("导入错误", $"错误提示：{ex.Message}", 1);
                 progress = 0;
                 return false;
-                
+
             }
         }
 
 
 
-       
+
         /// <summary>
         /// 根据excel的流式rows获取字段行
         /// </summary>
@@ -308,7 +301,7 @@ namespace DataToDocx
                 return condition;
             }
             else
-            {                Updatelabel("× 导入失败", label);
+            { Updatelabel("× 导入失败", label);
 
                 //Updatelogtext("【" + tablename + "】导入完成，共导入" + loadcount + "条。", RTB_log);
                 condition = 0;
@@ -338,7 +331,7 @@ namespace DataToDocx
 
         }
 
-        
+
 
         private static void ChangeTableName(string tablename, string connstr)
         {
@@ -375,9 +368,9 @@ namespace DataToDocx
             }
         }
 
-       
 
-       
+
+
 
         private void InputTask(string path, string tablename, string connstr, Label label)
         {
@@ -406,7 +399,7 @@ namespace DataToDocx
             }
             else
             {
-               System.Windows. MessageBox.Show("文件路径为空，请选择。");
+                System.Windows.MessageBox.Show("文件路径为空，请选择。");
             }
         }
 
@@ -505,49 +498,55 @@ namespace DataToDocx
         /// <param name="Title"></param>
         /// <param name="Message"></param>
         /// <param name="Type">1=Error,2=Info,3=Caution,4=Success</param>
-        public static void ShowSnackbar(string Title,string Message, int Type)
+        public static void ShowSnackbar(string Title, string Message, int Type)
         {
-            switch (Type)
+
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                case 1:
-                    WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
+                switch (Type)
+                {
+                    case 1:
+                        WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
             {
                 Title, Message
             }, "snackbarError");
-                    break;
-                case 2:
-                    WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
+                        break;
+                    case 2:
+                        WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
             {
                 Title, Message
             }, "snackbarInfo");
-                    break;
-                case 3:
-                    WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
+                        break;
+                    case 3:
+                        WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
             {
                 Title, Message
             }, "snackbarCaution");
-                    break;
-                case 4:
-                    WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
+                        break;
+                    case 4:
+                        WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
             {
                 Title, Message
             }, "snackbarSuccess");
-                    break;
-                default:
-                    break;
-            }
+                        break;
+                    default:
+                        break;
+                }
+            });
 
-            
+
         }
 
-        public static void ShowDialog(string Title,string Message,string CloseButtonText)
+        public static void ShowDialog(string Title, string Message, string CloseButtonText)
         {
-            Application.Current.Dispatcher.Invoke(()=>{
-WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                WeakReferenceMessenger.Default.Send<List<string>, string>(new List<string>()
             {
                 Title, Message,CloseButtonText
             }, "dialogAlart");
-        }});
+            });
+        }
         //public static void ShowContentDialog(string Title, string Message, string CloseButtonText,string PrimaryButtonText="",string SecondaryButtonText = "")
         //{
         //    WeakReferenceMessenger.Default.Send<SimpleContentDialogCreateOptions, string>(new SimpleContentDialogCreateOptions()

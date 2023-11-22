@@ -123,8 +123,7 @@ namespace DataToDocx.Models
 
             Task.Run(() =>
             {
-                Fun.ExcelToSqlite(FilePath, tableName, Connstr, out inputCount);
-
+                Fun.ExcelToSqlite(FilePath, tableName, Connstr, ref inputCount);
             });
             
             
